@@ -1,7 +1,10 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
@@ -35,61 +38,50 @@ class ProductController extends Controller
         // Сортировка
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
+        
+        $allowedSortFields = ['name', 'price', 'created_at', 'stock_quantity'];
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
 
         $products = $query->paginate($request->get('per_page', 12));
 
         return ProductResource::collection($products);
     }
 
-    public function show(Product $product): ProductResource
+        public function show(Product $product): ProductResource
     {
+        if (!$product->is_active) {
+            abort(404, 'Product not found');
+        }
+
+        $product->load('category');
+        return new ProductResource($product);
+    }
+
+    public function featured(): AnonymousResourceCollection
+    {
+        $products = Product::with('category')
+            ->where('is_active', true)
+            ->where('is_featured', true)
+            ->orderBy('created_at', 'desc')
+            ->limit(8)
+            ->get();
+
+        return ProductResource::collection($products);
+    }
+
+    public function store(StoreProductRequest $request): ProductResource
+    {
+        $product = Product::create($request->validated());
         $product->load('category');
 
         return new ProductResource($product);
     }
 
-    public function store(Request $request): ProductResource
+    public function update(UpdateProductRequest $request, Product $product): ProductResource
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:products',
-            'description' => 'required|string',
-            'short_description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
-            'sku' => 'required|string|unique:products',
-            'stock_quantity' => 'required|integer|min:0',
-            'images' => 'nullable|array',
-            'is_active' => 'boolean',
-            'is_featured' => 'boolean',
-            'category_id' => 'required|exists:categories,id',
-        ]);
-
-        $product = Product::create($validated);
-        $product->load('category');
-
-        return new ProductResource($product);
-    }
-
-    public function update(Request $request, Product $product): ProductResource
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:products,slug,' . $product->id,
-            'description' => 'required|string',
-            'short_description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
-            'sku' => 'required|string|unique:products,sku,' . $product->id,
-            'stock_quantity' => 'required|integer|min:0',
-            'images' => 'nullable|array',
-            'is_active' => 'boolean',
-            'is_featured' => 'boolean',
-            'category_id' => 'required|exists:categories,id',
-        ]);
-
-        $product->update($validated);
+        $product->update($request->validated());
         $product->load('category');
 
         return new ProductResource($product);
@@ -100,16 +92,5 @@ class ProductController extends Controller
         $product->delete();
 
         return response()->json(['message' => 'Product deleted successfully']);
-    }
-
-    public function featured(): AnonymousResourceCollection
-    {
-        $products = Product::with('category')
-            ->where('is_active', true)
-            ->where('is_featured', true)
-            ->take(8)
-            ->get();
-
-        return ProductResource::collection($products);
     }
 }
