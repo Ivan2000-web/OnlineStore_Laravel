@@ -12,10 +12,8 @@ class OrderItemResource extends JsonResource
             'id' => $this->id,
             'quantity' => $this->quantity,
             'price' => $this->price,
-            'subtotal' => $this->subtotal,
+            'subtotal' => $this->quantity * $this->price,
             'product' => new ProductResource($this->whenLoaded('product')),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
         ];
     }
 }

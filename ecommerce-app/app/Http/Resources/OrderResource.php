@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
@@ -17,10 +18,7 @@ class OrderResource extends JsonResource
             'billing_address' => $this->billing_address,
             'payment_method' => $this->payment_method,
             'payment_status' => $this->payment_status,
-            'shipped_at' => $this->shipped_at,
-            'delivered_at' => $this->delivered_at,
             'order_items' => OrderItemResource::collection($this->whenLoaded('orderItems')),
-            'items_count' => $this->when($this->relationLoaded('orderItems'), $this->orderItems->count()),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

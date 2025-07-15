@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -7,17 +8,12 @@ use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class OrderController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-    }
-
     public function index(): AnonymousResourceCollection
     {
         $orders = Order::with(['orderItems.product'])
@@ -34,12 +30,11 @@ class OrderController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $order->load(['orderItems.product.category']);
-
+        $order->load(['orderItems.product']);
         return new OrderResource($order);
     }
 
-    public function store(Request $request): OrderResource
+    public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $validated = $request->validate([
             'shipping_address' => 'required|array',
@@ -52,6 +47,14 @@ class OrderController extends Controller
             'shipping_address.postal_code' => 'required|string|max:20',
             'shipping_address.country' => 'required|string|max:255',
             'billing_address' => 'required|array',
+            'billing_address.first_name' => 'required|string|max:255',
+            'billing_address.last_name' => 'required|string|max:255',
+            'billing_address.address_line_1' => 'required|string|max:255',
+            'billing_address.address_line_2' => 'nullable|string|max:255',
+            'billing_address.city' => 'required|string|max:255',
+            'billing_address.state' => 'required|string|max:255',
+            'billing_address.postal_code' => 'required|string|max:20',
+            'billing_address.country' => 'required|string|max:255',
             'payment_method' => 'required|string|in:credit_card,paypal,bank_transfer',
         ]);
 
@@ -109,30 +112,15 @@ class OrderController extends Controller
 
             $order->load(['orderItems.product']);
 
-            return new OrderResource($order);
+            return response()->json([
+                'message' => 'Order created successfully',
+                'order' => new OrderResource($order)
+            ], 201);
 
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['message' => 'Order creation failed'], 500);
         }
-    }
-
-    public function update(Request $request, Order $order): OrderResource
-    {
-        if ($order->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-
-        $validated = $request->validate([
-            'status' => 'sometimes|in:pending,processing,shipped,delivered,cancelled',
-            'shipping_address' => 'sometimes|array',
-            'billing_address' => 'sometimes|array',
-        ]);
-
-        $order->update($validated);
-        $order->load(['orderItems.product']);
-
-        return new OrderResource($order);
     }
 
     public function destroy(Order $order): \Illuminate\Http\JsonResponse

@@ -1,6 +1,4 @@
 <?php
-// File: /Users/ivanpotvorov/Desktop/OnlineStore_Laravel/ecommerce-app/bootstrap/app.php
-
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;

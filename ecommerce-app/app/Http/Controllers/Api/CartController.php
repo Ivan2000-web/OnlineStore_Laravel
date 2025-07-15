@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -6,16 +7,12 @@ use App\Http\Resources\CartItemResource;
 use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CartController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-    }
-
     public function index(): AnonymousResourceCollection
     {
         $cartItems = CartItem::with('product.category')
@@ -40,15 +37,28 @@ class CartController extends Controller
             ], 400);
         }
 
-        $cartItem = CartItem::updateOrCreate(
-            [
+        $existingCartItem = CartItem::where('user_id', Auth::id())
+            ->where('product_id', $validated['product_id'])
+            ->first();
+
+        if ($existingCartItem) {
+            $newQuantity = $existingCartItem->quantity + $validated['quantity'];
+            
+            if ($product->stock_quantity < $newQuantity) {
+                return response()->json([
+                    'message' => 'Insufficient stock quantity'
+                ], 400);
+            }
+            
+            $existingCartItem->update(['quantity' => $newQuantity]);
+            $cartItem = $existingCartItem;
+        } else {
+            $cartItem = CartItem::create([
                 'user_id' => Auth::id(),
                 'product_id' => $validated['product_id'],
-            ],
-            [
-                'quantity' => \DB::raw('quantity + ' . $validated['quantity']),
-            ]
-        );
+                'quantity' => $validated['quantity'],
+            ]);
+        }
 
         $cartItem->load('product.category');
 
@@ -68,7 +78,8 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        if ($cartItem->product->stock_quantity < $validated['quantity']) {
+        $product = $cartItem->product;
+        if ($product->stock_quantity < $validated['quantity']) {
             return response()->json([
                 'message' => 'Insufficient stock quantity'
             ], 400);

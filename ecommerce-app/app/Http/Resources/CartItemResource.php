@@ -12,9 +12,9 @@ class CartItemResource extends JsonResource
             'id' => $this->id,
             'quantity' => $this->quantity,
             'product' => new ProductResource($this->whenLoaded('product')),
-            'subtotal' => $this->when($this->relationLoaded('product'), 
-                $this->quantity * $this->product->getCurrentPrice()
-            ),
+            'subtotal' => $this->when($this->relationLoaded('product'), function () {
+                return $this->quantity * $this->product->getCurrentPrice();
+            }),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
